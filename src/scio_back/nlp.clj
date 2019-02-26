@@ -3,8 +3,7 @@
             [opennlp.tools.filters]
             [opennlp.treebank]
             [clojure.spec.alpha :as s]
-            [scio-back.specs :as specs])
-  (:import (java.io File)))
+            [scio-back.specs :as specs]))
 
 
 (defmacro defnex
