@@ -30,7 +30,7 @@
        (catch TimeoutException x#
          (do
            (future-cancel future#)
-           (log/error (str ~name " " "Timed out"))
+           (log/error ~name "Timed out")
            nil)))))
 
 (def NA '("NA"))
@@ -61,7 +61,7 @@
 (defn analyse
   "Analyse file and store result to elasticsearch"
   [file-name cfg sha-256]
-  (log/info (str "Starting to analyze " sha-256))
+  (log/info "Starting to analyze" sha-256)
   (try
     (let [doc (extract/parse file-name)
           spamsum (SpamSum.)
@@ -143,7 +143,7 @@
   (thread
     (while true
       (let [[file-name cfg sha256 record] (<!! job-channel)]
-        (log/info (str "Worker " n " got job " sha256))
+        (log/info "Worker" n "got job" sha256)
         (let [ms-running-time (* 1000 60 5)] ;; 5 min max running time
           (if-let [a (with-timeout ms-running-time sha256
                        (analyse file-name cfg sha256))]
@@ -153,16 +153,16 @@
                cfg
                (str (get-in cfg [:storage :index]) "/doc")
                sha256)
-              (log/info (str "Worker " n " finished job " sha256)))
-            (log/error (str "Worker " n " FAILED to complete job " sha256))))))))
+              (log/info "Worker" n "finished job" sha256))
+            (log/error "Worker" n "FAILED to complete job" sha256)))))))
 
 (defn start-worker-pool
   "Spin up a pool of n workers listening to job-channel"
   [job-channel n]
   (do
-    (log/info (str "Starting a worker pool of " n " worker!"))
+    (log/info "Starting a worker pool of" n "worker!")
     (doseq [i (range n)]
-      (log/info (str "Starting worker " i))
+      (log/info "Starting worker" i)
       (start-document-worker job-channel i))
     (log/info "Worker pool started!")))
 
@@ -177,9 +177,9 @@
   [content output-name]
   (let [base-name (fs/base-name output-name)]
     (when-not (fs/exists? output-name)
-      (log/info (str "Storing " base-name))
+      (log/info "Storing" base-name)
       (write-file output-name content)
-      (log/info (str "Complete " base-name)))))
+      (log/info "Complete" base-name))))
 
 (defn slurp-bytes
   "Slurp the bytes from a slurpable thing"
@@ -189,7 +189,7 @@
       (clojure.java.io/copy (clojure.java.io/input-stream x) out)
       (.toByteArray out))
     (catch FileNotFoundException e
-      (log/warn (str  "Could not read:" x))
+      (log/warn "Could not read:" x)
       nil)))
 
 (defn handle-doc
