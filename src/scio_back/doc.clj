@@ -137,22 +137,18 @@
       nil)))
 
 (defn start-document-worker
-  "Start a new document worker, listening for jobs on
-  a channel"
+  "Start a new document worker, listening for jobs on a channel"
   [job-channel n]
   (thread
     (while true
-      (let [[file-name cfg sha256 record] (<!! job-channel)]
+      (let [[file-name cfg sha256 record] (<!! job-channel)
+            storage-cfg (:storage cfg)]
         (log/info "Worker" n "got job" sha256)
         (let [ms-running-time (* 1000 60 5)] ;; 5 min max running time
           (if-let [a (with-timeout ms-running-time sha256
                        (analyse file-name cfg sha256))]
             (do
-              (storage/send-to-nifi
-               (into a record)
-               cfg
-               (str (get-in cfg [:storage :index]) "/doc")
-               sha256)
+              (storage/send-to-nifi (into a record) storage-cfg sha256)
               (log/info "Worker" n "finished job" sha256))
             (log/error "Worker" n "FAILED to complete job" sha256)))))))
 
