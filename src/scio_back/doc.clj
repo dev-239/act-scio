@@ -204,9 +204,12 @@
 
 (defn handle-topic-doc
   "Handle messages in the doc tube in beanstalk"
-  [beanstalk-config cfg]
-  (let [{host :host port :port queue :queue} beanstalk-config
-        worker-count (Integer. (get-in cfg [:general :worker-count] 1))
+  [cfg]
+  (let [bs-cfg (:beanstalk cfg)
+        host (get bs-cfg :host "localhost")
+        port (Integer. (get bs-cfg :port 11300))
+        queue (get bs-cfg :queue "doc")
+        worker-count (Integer. (get-in bs-cfg [:general :worker-count] 1))
         job-channel (chan)]
     (start-worker-pool job-channel worker-count)
     (while true
