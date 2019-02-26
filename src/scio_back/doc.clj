@@ -12,7 +12,6 @@
    [clojure.stacktrace :as stacktrace]
    [clojure.tools.logging :as log]
    [digest]
-   [me.raynes.fs :as fs]
    [beanstalk-clj.core :refer [with-beanstalkd beanstalkd-factory
                                put delete reserve
                                watch-tube use-tube]])
@@ -163,20 +162,12 @@
     (log/info "Worker pool started")
     job-channel))
 
-(defn write-file
-  "Write file to disk"
-  [file-name content]
-  (with-open [w (io/output-stream file-name)]
-    (.write w content)))
-
 (defn store!
   "Store a file to disk. If it already exists; do nothing"
   [content output-name]
-  (let [base-name (fs/base-name output-name)]
-    (when-not (fs/exists? output-name)
-      (log/info "Storing" base-name)
-      (write-file output-name content)
-      (log/info "Complete" base-name))))
+  (when-not (.exists (io/file output-name))
+    (with-open [w (io/output-stream output-name)]
+      (.write w content))))
 
 (defn slurp-bytes
   "Slurp the bytes from a slurpable thing"

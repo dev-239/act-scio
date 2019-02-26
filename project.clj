@@ -9,7 +9,6 @@
                  [clojure-ini "0.0.2"]
                  [clojure-opennlp "0.4.0"]
                  [digest "1.4.6"]
-                 [me.raynes/fs "1.4.6"]
                  [org.clojure/data.json "0.2.6"]
                  [org.clojure/core.async "0.3.443"]
                  [org.clojure/tools.logging "0.4.0"]
