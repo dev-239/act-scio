@@ -157,14 +157,15 @@
             (log/error "Worker" n "FAILED to complete job" sha256)))))))
 
 (defn start-worker-pool
-  "Spin up a pool of n workers listening to job-channel"
-  [job-channel n]
-  (do
+  "Spin up a pool of n workers listening to a jobs channel"
+  [n]
+  (let [job-channel (chan)]
     (log/info "Starting a worker pool of" n "worker!")
     (doseq [i (range n)]
       (log/info "Starting worker" i)
       (start-document-worker job-channel i))
-    (log/info "Worker pool started!")))
+    (log/info "Worker pool started!")
+    job-channel))
 
 (defn write-file
   "Write file to disk"
@@ -213,8 +214,7 @@
         port (Integer. (get bs-cfg :port 11300))
         queue (get bs-cfg :queue "doc")
         worker-count (Integer. (get-in bs-cfg [:general :worker-count] 1))
-        job-channel (chan)]
-    (start-worker-pool job-channel worker-count)
+        job-channel (start-worker-pool worker-count)]
     (while true
       (with-beanstalkd (beanstalkd-factory host port)
         (watch-tube queue)
