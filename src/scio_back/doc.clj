@@ -138,29 +138,29 @@
 
 (defn start-document-worker
   "Start a new document worker, listening for jobs on a channel"
-  [job-channel n]
+  [job-channel cfg id]
   (thread
     (while true
-      (let [[file-name cfg sha256 record] (<!! job-channel)
+      (let [[file-name sha256 record] (<!! job-channel)
             storage-cfg (:storage cfg)]
-        (log/info "Worker" n "got job" sha256)
+        (log/info "Worker" id "got job" sha256)
         (let [ms-running-time (* 1000 60 5)] ;; 5 min max running time
           (if-let [a (with-timeout ms-running-time sha256
                        (analyse file-name cfg sha256))]
             (do
               (storage/send-to-nifi (into a record) storage-cfg sha256)
-              (log/info "Worker" n "finished job" sha256))
-            (log/error "Worker" n "FAILED to complete job" sha256)))))))
+              (log/info "Worker" id "finished job" sha256))
+            (log/error "Worker" id "FAILED to complete job" sha256)))))))
 
 (defn start-worker-pool
   "Spin up a pool of n workers listening to a jobs channel"
-  [n]
+  [cfg num-workers]
   (let [job-channel (chan)]
-    (log/info "Starting a worker pool of" n "worker!")
-    (doseq [i (range n)]
-      (log/info "Starting worker" i)
-      (start-document-worker job-channel i))
-    (log/info "Worker pool started!")
+    (log/info "Starting a worker pool of" num-workers "workers")
+    (doseq [id (range num-workers)]
+      (log/info "Starting worker" id)
+      (start-document-worker job-channel cfg id))
+    (log/info "Worker pool started")
     job-channel))
 
 (defn write-file
@@ -207,7 +207,7 @@
               output-name (str (get-in cfg [:storage :storagedir]) "/" (.getName (io/file (:filename record))))]
           (when content
             (store! content output-name)
-            (>!! job-channel [output-name cfg sha-256 record]))
+            (>!! job-channel [output-name sha-256 record]))
           (delete job))))))
 
 (def handlers
@@ -218,7 +218,7 @@
   "Starts a worker pool, then starts the wanted document handler to ingest docs into the worker pool"
   [handler-name cfg]
   (let [worker-count (Integer. (get-in cfg [:general :worker-count] 1))
-        job-channel (start-worker-pool worker-count)
+        job-channel (start-worker-pool cfg worker-count)
         handler-fn (get handlers (keyword handler-name))]
     (if (some? handler-fn)
       (handler-fn job-channel cfg)
