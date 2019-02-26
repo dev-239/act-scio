@@ -6,6 +6,7 @@
 (def cli-opts
   "The choice of command line arguments the user has"
   [[nil "--config-file FILE" "Configuration file" :default "/etc/scio.ini"]
+   [nil "--handler HANDLER" "Handler for new documents" :default "beanstalk"]
    [nil "--help" "Displays this message"]])
 
 (defn- usage-msg

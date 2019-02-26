@@ -45,7 +45,7 @@
              now)))
 
 (defn build-data-map
-  "Extract spesific fields from the document. If the document does not contain
+  "Extract specific fields from the document. If the document does not contain
   a 'creation-date' field, the current time is used."
   [doc file-name]
   (-> {}
@@ -170,7 +170,7 @@
     (.write w content)))
 
 (defn store!
-  "Store a file to disk. If it allready exists; do nothing"
+  "Store a file to disk. If it already exists; do nothing"
   [content output-name]
   (let [base-name (fs/base-name output-name)]
     (when-not (fs/exists? output-name)
@@ -189,33 +189,37 @@
       (log/warn "Could not read:" x)
       nil)))
 
-(defn handle-doc
-  "Message handler stores the file content of the message to disk as described
-  in the .ini file. Then launches file analysis on one of the workers in the
-  worker pool"
-  [msg cfg job-channel]
-  (let [record (json/read-str msg :key-fn keyword)
-        content (slurp-bytes (:filename record))
-        sha-256 (digest/sha-256 content)
-        output-name (str (get-in cfg [:storage :storagedir]) "/" (.getName (io/file (:filename record))))]
-    (when content
-      (store! content output-name)
-      (>!! job-channel [output-name cfg sha-256 record]))))
-
-(defn handle-topic-doc
-  "Handle messages in the doc tube in beanstalk"
-  [cfg]
+(defn handle-from-beanstalk
+  "Handles an incoming message on a tube in beanstalk, stores the file content of
+  the message to disk (as per .ini file config). Then sends file to analysis"
+  [job-channel cfg]
   (let [bs-cfg (:beanstalk cfg)
         host (get bs-cfg :host "localhost")
         port (Integer. (get bs-cfg :port 11300))
-        queue (get bs-cfg :queue "doc")
-        worker-count (Integer. (get-in bs-cfg [:general :worker-count] 1))
-        job-channel (start-worker-pool worker-count)]
+        queue (get bs-cfg :queue "doc")]
     (while true
       (with-beanstalkd (beanstalkd-factory host port)
         (watch-tube queue)
-        (let [job (reserve)]
-          (handle-doc (.body job) cfg job-channel)
+        (let [job (reserve)
+              record (json/read-str (.body job) :key-fn keyword)
+              content (slurp-bytes (:filename record))
+              sha-256 (digest/sha-256 content)
+              output-name (str (get-in cfg [:storage :storagedir]) "/" (.getName (io/file (:filename record))))]
+          (when content
+            (store! content output-name)
+            (>!! job-channel [output-name cfg sha-256 record]))
           (delete job))))))
 
+(def handlers
+  "Document handlers available for the user to run the system with"
+  {:beanstalk handle-from-beanstalk})
 
+(defn start-handler
+  "Starts a worker pool, then starts the wanted document handler to ingest docs into the worker pool"
+  [handler-name cfg]
+  (let [worker-count (Integer. (get-in cfg [:general :worker-count] 1))
+        job-channel (start-worker-pool worker-count)
+        handler-fn (get handlers (keyword handler-name))]
+    (if (some? handler-fn)
+      (handler-fn job-channel cfg)
+      (log/error "document handler" handler-name "is not registered in the system"))))
