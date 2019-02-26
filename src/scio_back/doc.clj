@@ -187,7 +187,7 @@
   [x]
   (try
     (with-open [out (ByteArrayOutputStream.)]
-      (clojure.java.io/copy (clojure.java.io/input-stream x) out)
+      (io/copy (io/input-stream x) out)
       (.toByteArray out))
     (catch FileNotFoundException e
       (log/warn "Could not read:" x)
