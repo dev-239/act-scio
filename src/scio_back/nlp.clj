@@ -19,7 +19,7 @@
              tokenize# (opennlp.nlp/make-tokenizer (:tokenizer (lang-fn# cfg#)))
              tokens# (tokenize# text-body#)]
          (name-find# tokens#))
-       (catch java.lang.AssertionError e#
+       (catch AssertionError e#
          (println (str e#))
          []) ;; nlp is trying to assert seq
        (catch Exception e# ;; when "something" fails, return empty list.
