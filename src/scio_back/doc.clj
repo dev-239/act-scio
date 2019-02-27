@@ -184,10 +184,10 @@
   "Handles an incoming message on a tube in beanstalk, stores the file content of
   the message to disk (as per .ini file config). Then sends file to analysis"
   [job-channel cfg]
-  (let [bs-cfg (:beanstalk cfg)
-        host (get bs-cfg :host "localhost")
-        port (Integer. (get bs-cfg :port 11300))
-        queue (get bs-cfg :queue "doc")]
+  (let [bs-cfg (get cfg :beanstalk {:host "localhost" :port 11300 :queue "doc"})
+        host (:host bs-cfg)
+        port (Integer. (:port bs-cfg))
+        queue (get bs-cfg :queue bs-cfg)]
     (while true
       (with-beanstalkd (beanstalkd-factory host port)
         (watch-tube queue)
