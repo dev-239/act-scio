@@ -5,17 +5,16 @@
             [clojure.spec.alpha :as s]
             [scio-back.specs :as specs]))
 
-
 (defmacro defnex
   "Create extractor functions wrapping opennlp"
   [ex-name]
   `(defn ~(symbol (str "extract-" ex-name "s"))
      ~(str "Extract all " ex-name "s from a body of text.")
-     [cfg# lang-fn# text-body#]
+     [cfg# lang# text-body#]
      (try
-       (let [model# (~(keyword ex-name) (lang-fn# cfg#))
+       (let [model# (~(keyword ex-name) (get cfg# lang#))
              name-find# (opennlp.nlp/make-name-finder model#)
-             tokenize# (opennlp.nlp/make-tokenizer (:tokenizer (lang-fn# cfg#)))
+             tokenize# (opennlp.nlp/make-tokenizer (:tokenizer (get cfg# lang#)))
              tokens# (tokenize# text-body#)]
          (name-find# tokens#))
        (catch AssertionError e#
@@ -37,19 +36,19 @@
 
 (defn raw-text->interpretation
   "parse a text-body, interpret and return hash-map"
-  [cfg lang-fn text-body]
-  {:pre [(s/assert ::specs/supported-language lang-fn)
-         (s/assert ::specs/nlp-model-config (lang-fn cfg))
+  [cfg lang text-body]
+  {:pre [(s/assert ::specs/supported-language lang)
+         (s/assert ::specs/nlp-model-config (get cfg lang))
          (s/assert string? text-body)]
    :post [(s/assert ::specs/nlp-interpretation %)]}
-  {:persons (extract-persons cfg lang-fn text-body)
-   :organizations (extract-organizations cfg lang-fn text-body)
-   :times (extract-times cfg lang-fn text-body)
-   :dates (extract-dates cfg lang-fn text-body)
-   :percentages (extract-percentages cfg lang-fn text-body)
-   :locations (extract-locations cfg lang-fn text-body)
-   :threatactors (extract-threatactors cfg lang-fn text-body)
-   :moneys (extract-moneys cfg lang-fn text-body)})
+  {:persons (extract-persons cfg lang text-body)
+   :organizations (extract-organizations cfg lang text-body)
+   :times (extract-times cfg lang text-body)
+   :dates (extract-dates cfg lang text-body)
+   :percentages (extract-percentages cfg lang text-body)
+   :locations (extract-locations cfg lang text-body)
+   :threatactors (extract-threatactors cfg lang text-body)
+   :moneys (extract-moneys cfg lang text-body)})
 
 (defn drop-en-article
   "remove the from first element of list"
@@ -69,7 +68,6 @@
     (if (conjunction (last elements))
       (drop-last elements)
       elements)))
-
 
 (defn trim-trailing
   "Trim a set of trailing characters"
