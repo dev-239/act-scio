@@ -48,5 +48,5 @@
 (deftest find-sectors-test
   (testing "finding sectors in a text"
     (let [text "A financial sector and a banking organization walked over a bridge. They said helo to the defence sector and tipped their hat to king kong. The malware research industries was not particularly talkative."
-          sectors (find-sectors (:sectors (read-config)) text)]
+          sectors (find-sectors (:sectors (read-config "etc/scio.ini")) text)]
       (is (= sectors #{"defence" "technology" "financial-services"})))))

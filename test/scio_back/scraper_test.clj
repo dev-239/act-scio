@@ -42,7 +42,7 @@
       (is (= tlds-first ["com" "no"])))))
 
 (deftest test-scraper
-  (let [indicators (raw-text->indicators (read-config) test-text-lowercase)]
+  (let [indicators (raw-text->indicators (read-config "etc/scio.ini") test-text-lowercase)]
     (testing "scrape md5 lowercase"
       (is (= (:md5 indicators) '("be5ee729563fa379e71d82d61cc3fdcf"))))
 
