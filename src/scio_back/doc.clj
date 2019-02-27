@@ -135,30 +135,30 @@
       (log/error (with-out-str (stacktrace/print-stack-trace e)))
       nil)))
 
+(defrecord JobMessage [file-name sha-256 record])
+
 (defn start-document-worker
   "Start a new document worker, listening for jobs on a channel"
-  [job-channel cfg id]
+  [job-channel cfg id timeout-ms]
   (thread
     (while true
-      (let [[file-name sha256 record] (<!! job-channel)
-            storage-cfg (:storage cfg)]
-        (log/info "Worker" id "got job" sha256)
-        (let [ms-running-time (* 1000 60 5)] ;; 5 min max running time
-          (if-let [a (with-timeout ms-running-time sha256
-                       (analyse file-name cfg sha256))]
-            (do
-              (storage/send-to-nifi (into a record) storage-cfg sha256)
-              (log/info "Worker" id "finished job" sha256))
-            (log/error "Worker" id "FAILED to complete job" sha256)))))))
+      (let [{:keys [file-name sha-256 record]} (<!! job-channel)]
+        (log/info "Worker" id "got job" sha-256)
+        (if-let [results (with-timeout timeout-ms sha-256 (analyse file-name cfg sha-256))]
+          (do
+            (storage/send-to-nifi (merge results record) (:storage cfg) sha-256)
+            (log/info "Worker" id "finished job" sha-256))
+          (log/error "Worker" id "FAILED to complete job" sha-256))))))
 
 (defn start-worker-pool
   "Spin up a pool of n workers listening to a jobs channel"
   [cfg num-workers]
-  (let [job-channel (chan)]
+  (let [job-channel (chan)
+        timeout-ms (Integer. (get-in cfg [:general :worker-timeout-ms] 300000))]
     (log/info "Starting a worker pool of" num-workers "workers")
     (doseq [id (range num-workers)]
       (log/info "Starting worker" id)
-      (start-document-worker job-channel cfg id))
+      (start-document-worker job-channel cfg id timeout-ms))
     (log/info "Worker pool started")
     job-channel))
 
@@ -198,7 +198,7 @@
               output-name (str (get-in cfg [:storage :storagedir]) "/" (.getName (io/file (:filename record))))]
           (when content
             (store! content output-name)
-            (>!! job-channel [output-name sha-256 record]))
+            (>!! job-channel (->JobMessage output-name sha-256 record)))
           (delete job))))))
 
 (def handlers
