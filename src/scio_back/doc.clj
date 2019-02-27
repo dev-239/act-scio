@@ -183,7 +183,7 @@
 (defn handle-from-beanstalk
   "Handles an incoming message on a tube in beanstalk, stores the file content of
   the message to disk (as per .ini file config). Then sends file to analysis"
-  [job-channel cfg]
+  [cfg job-channel]
   (let [bs-cfg (get cfg :beanstalk {:host "localhost" :port 11300 :queue "doc"})
         host (:host bs-cfg)
         port (Integer. (:port bs-cfg))
@@ -208,9 +208,8 @@
 (defn start-handler
   "Starts a worker pool, then starts the wanted document handler to ingest docs into the worker pool"
   [handler-name cfg]
-  (let [worker-count (Integer. (get-in cfg [:general :worker-count] 1))
-        job-channel (start-worker-pool cfg worker-count)
-        handler-fn (get handlers (keyword handler-name))]
-    (if (some? handler-fn)
-      (handler-fn job-channel cfg)
-      (log/error "document handler" handler-name "is not registered in the system"))))
+  (if-let [handler-fn (get handlers (keyword handler-name))]
+    (let [worker-count (Integer. (get-in cfg [:general :worker-count] 1))
+          job-channel (start-worker-pool cfg worker-count)]
+      (handler-fn job-channel cfg))
+    (log/error "document handler" handler-name "is not registered in the system")))
