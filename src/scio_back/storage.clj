@@ -28,7 +28,20 @@
        :content-type :json
        :accept :json})))
 
+(defn send-to-generic-http
+  "Posts data structure to HTTP(S) endpoint"
+  [data cfg _]
+  (let [document (json/write-str data)
+        schema (:schema cfg)
+        host (:host cfg)
+        port (Integer/parseInt (:port cfg))
+        endpoint (:endpoint cfg)
+        allow-insecure-ssl? (Boolean/parseBoolean (:allow-insecure-ssl cfg))
+        url (str schema "://" host ":" port "/" endpoint)]
+    (client/post url {:body document :content-type :json :accept :json :insecure? allow-insecure-ssl?})))
+
 (def stores
   "A map of available stores the user can send analysis results to."
   {:elasticsearch send-to-elasticsearch
-   :nifi send-to-nifi})
+   :nifi send-to-nifi
+   :generic-http send-to-generic-http})
