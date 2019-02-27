@@ -5,12 +5,14 @@
 
 (defn send-to-elasticsearch
   "Send a data structure to Elasticsearch"
-  [data storage-cfg sha-256]
+  [data cfg sha-256]
   (let [document (json/write-str data)
-        host (:elasticsearch-url storage-cfg)
-        index (:elasticsearch-index storage-cfg)
-        doc-type (:elasticsearch-doc-type storage-cfg)
-        url (str host "/" index "/" doc-type "/" sha-256)]
+        schema (:schema cfg)
+        host (:host cfg)
+        port (Integer/parseInt (:port cfg))
+        index (:index cfg)
+        doc-type (:doc-type cfg)
+        url (str schema "://" host ":" port "/" index "/" doc-type "/" sha-256)]
     (client/post url
       {:body document
        :content-type :json
@@ -18,9 +20,9 @@
 
 (defn send-to-nifi
   "Send a data structure to NiFi"
-  [data storage-cfg _]
+  [data cfg _]
   (let [document (json/write-str data)
-        url (:nifi-url storage-cfg)]
+        url (:nifi-url cfg)]
     (client/post url
       {:body document
        :content-type :json

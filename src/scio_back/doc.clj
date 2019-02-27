@@ -139,31 +139,33 @@
 
 (defn start-document-worker
   "Start a new document worker, listening for jobs on a channel"
-  [job-channel cfg id timeout-ms storage-fn]
+  [job-channel cfg storage-cfg id timeout-ms storage-fn]
   (thread
     (while true
       (let [{:keys [file-name sha-256 record]} (<!! job-channel)]
         (log/info "Worker" id "got job" sha-256)
         (if-let [results (with-timeout timeout-ms sha-256 (analyse file-name cfg sha-256))]
           (do
-            (storage-fn (merge results record) (:storage cfg) sha-256)
+            (storage-fn (merge results record) storage-cfg sha-256)
             (log/info "Worker" id "finished job" sha-256))
           (log/error "Worker" id "FAILED to complete job" sha-256))))))
 
 (defn start-worker-pool
   "Spin up a pool of n workers listening to a jobs channel"
   [cfg num-workers]
-  (let [storage-location (get-in cfg [:general :storage-location])]
-    (if-let [storage-fn (get storage/stores storage-location)]
+  (let [storage-location (get-in cfg [:general :storage-location])
+        storage-fn (get storage/stores storage-location)
+        storage-cfg (get cfg (keyword (str "storage-" storage-location)))]
+    (if (and (some? storage-fn) (some? storage-cfg))
       (let [job-channel (chan)
-            timeout-ms (Integer. (get-in cfg [:general :worker-timeout-ms] 300000))]
+            timeout-ms (Integer/parseInt (get-in cfg [:general :worker-timeout-ms]))]
         (log/info "Starting a worker pool of" num-workers "workers")
         (doseq [id (range num-workers)]
           (log/info "Starting worker" id)
-          (start-document-worker job-channel cfg id timeout-ms storage-fn))
+          (start-document-worker job-channel cfg storage-cfg id timeout-ms storage-fn))
         (log/info "Worker pool started")
         job-channel)
-      (log/error "could not find storage location" storage-location))))
+      (log/error "could not find storage location and or storage config:" storage-location))))
 
 (defn store!
   "Store a file to disk. If it already exists; do nothing"
@@ -187,10 +189,11 @@
   "Handles an incoming message on a tube in beanstalk, stores the file content of
   the message to disk (as per .ini file config). Then sends file to analysis"
   [cfg job-channel]
-  (let [bs-cfg (get cfg :beanstalk {:host "localhost" :port 11300 :queue "doc"})
+  (let [bs-cfg (get cfg :handler-beanstalk)
         host (:host bs-cfg)
-        port (Integer. (:port bs-cfg))
-        queue (get bs-cfg :queue bs-cfg)]
+        port (Integer/parseInt (:port bs-cfg))
+        queue (get bs-cfg :queue bs-cfg)
+        temp-dir (:temp-dir bs-cfg)]
     (while true
       (with-beanstalkd (beanstalkd-factory host port)
         (watch-tube queue)
@@ -198,7 +201,7 @@
               record (json/read-str (.body job) :key-fn keyword)
               content (slurp-bytes (:filename record))
               sha-256 (digest/sha-256 content)
-              output-name (str (get-in cfg [:storage :storagedir]) "/" (.getName (io/file (:filename record))))]
+              output-name (str temp-dir "/" (.getName (io/file (:filename record))))]
           (when content
             (store! content output-name)
             (>!! job-channel (->JobMessage output-name sha-256 record)))
@@ -212,7 +215,7 @@
   "Starts a worker pool, then starts the wanted document handler to ingest docs into the worker pool"
   [handler-name cfg]
   (if-let [handler-fn (get handlers (keyword handler-name))]
-    (let [worker-count (Integer. (get-in cfg [:general :worker-count] 1))
+    (let [worker-count (Integer/parseInt (get-in cfg [:general :worker-count] 1))
           job-channel (start-worker-pool cfg worker-count)]
       (handler-fn job-channel cfg))
     (log/error "document handler" handler-name "is not registered in the system")))
