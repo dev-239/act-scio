@@ -25,3 +25,8 @@
       {:body document
        :content-type :json
        :accept :json})))
+
+(def stores
+  "A map of available stores the user can send analysis results to."
+  {:elasticsearch send-to-elasticsearch
+   :nifi send-to-nifi})

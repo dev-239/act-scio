@@ -139,28 +139,31 @@
 
 (defn start-document-worker
   "Start a new document worker, listening for jobs on a channel"
-  [job-channel cfg id timeout-ms]
+  [job-channel cfg id timeout-ms storage-fn]
   (thread
     (while true
       (let [{:keys [file-name sha-256 record]} (<!! job-channel)]
         (log/info "Worker" id "got job" sha-256)
         (if-let [results (with-timeout timeout-ms sha-256 (analyse file-name cfg sha-256))]
           (do
-            (storage/send-to-nifi (merge results record) (:storage cfg) sha-256)
+            (storage-fn (merge results record) (:storage cfg) sha-256)
             (log/info "Worker" id "finished job" sha-256))
           (log/error "Worker" id "FAILED to complete job" sha-256))))))
 
 (defn start-worker-pool
   "Spin up a pool of n workers listening to a jobs channel"
   [cfg num-workers]
-  (let [job-channel (chan)
-        timeout-ms (Integer. (get-in cfg [:general :worker-timeout-ms] 300000))]
-    (log/info "Starting a worker pool of" num-workers "workers")
-    (doseq [id (range num-workers)]
-      (log/info "Starting worker" id)
-      (start-document-worker job-channel cfg id timeout-ms))
-    (log/info "Worker pool started")
-    job-channel))
+  (let [storage-location (get-in cfg [:general :storage-location])]
+    (if-let [storage-fn (get storage/stores storage-location)]
+      (let [job-channel (chan)
+            timeout-ms (Integer. (get-in cfg [:general :worker-timeout-ms] 300000))]
+        (log/info "Starting a worker pool of" num-workers "workers")
+        (doseq [id (range num-workers)]
+          (log/info "Starting worker" id)
+          (start-document-worker job-channel cfg id timeout-ms storage-fn))
+        (log/info "Worker pool started")
+        job-channel)
+      (log/error "could not find storage location" storage-location))))
 
 (defn store!
   "Store a file to disk. If it already exists; do nothing"
