@@ -12,9 +12,7 @@
    [clojure.stacktrace :as stacktrace]
    [clojure.tools.logging :as log]
    [digest]
-   [beanstalk-clj.core :refer [with-beanstalkd beanstalkd-factory
-                               put delete reserve
-                               watch-tube use-tube]])
+   [beanstalk-clj.core :as beanstalk])
   (:import [info.debatty.java.spamsum SpamSum]
            (java.util.concurrent TimeUnit TimeoutException)
            (java.util TimeZone Date)
@@ -176,9 +174,9 @@
         queue (get bs-cfg :queue bs-cfg)
         temp-dir (:temp-dir bs-cfg)]
     (while true
-      (with-beanstalkd (beanstalkd-factory host port)
-        (watch-tube queue)
-        (let [job (reserve)
+      (beanstalk/with-beanstalkd (beanstalk/beanstalkd-factory host port)
+        (beanstalk/watch-tube queue)
+        (let [job (beanstalk/reserve)
               record (json/read-str (.body job) :key-fn keyword)
               content (slurp-bytes (:filename record))
               sha-256 (digest/sha-256 content)
@@ -186,7 +184,7 @@
           (when content
             (store! content output-name)
             (>!! job-channel (->JobMessage output-name sha-256 record)))
-          (delete job))))))
+          (beanstalk/delete job))))))
 
 (def handlers
   "Document handlers available for the user to run the system with"

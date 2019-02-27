@@ -7,7 +7,8 @@
   "The choice of command line arguments the user has"
   [[nil "--config-file FILE" "Configuration file" :default "/etc/scio.ini"]
    [nil "--handler HANDLER" "Handler for new documents" :default "beanstalk"]
-   [nil "--help" "Displays this message"]])
+   [nil "--storage STORAGE" "Storage location for analysis results" :default "elasticsearch"]
+   ["-h" "--help" "Displays this message"]])
 
 (defn- usage-msg
   "Display how to use this application through command line arguments"

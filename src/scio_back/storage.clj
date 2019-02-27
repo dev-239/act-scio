@@ -21,7 +21,7 @@
   "Send a data structure to NiFi"
   [data cfg _]
   (let [document (json/write-str data)
-        url (:nifi-url cfg)]
+        url (:url cfg)]
     (client/post url
       {:body document
        :content-type :json
