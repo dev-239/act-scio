@@ -1,7 +1,6 @@
 (ns scio-back.storage
-    (:require
-     [clj-http.client :as client]
-     [clojure.data.json :as json]))
+    (:require [clj-http.client :as client]
+              [clojure.data.json :as json]))
 
 (defn send-to-elasticsearch
   "Send a data structure to Elasticsearch"

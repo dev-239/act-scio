@@ -1,9 +1,6 @@
 (ns scio-back.addressvalidator
   (:require [clojure.string :as str]))
 
-;; Validate IPv6 addresses according to
-;; https://tools.ietf.org/html/rfc4291#section-2.2
-
 (def not-nil? (complement nil?))
 
 (defn num-convert-or-neg
@@ -14,9 +11,9 @@
     (catch NumberFormatException e -1)))
 
 (defn no-hanging-colon?
-  "Check that there are no hanging colon"
-  [mystr]
-  (nil? (re-matches #":$" mystr)))
+  "Check that there are is no hanging colon"
+  [s]
+  (nil? (re-matches #":$" s)))
 
 (defn valid-ipv6-token?
   "Validate a single IPv6 token"
@@ -39,8 +36,7 @@
       (every? true? (map #(< -1 % 256) numbers)))))
 
 (defn ipv6-form-1?
-  "Validate IPv6 accordring to https://tools.ietf.org/html/rfc4291#section-2.2
-  form 1."
+  "Validate IPv6 according to https://tools.ietf.org/html/rfc4291#section-2.2 form 1."
   [ipv6-string]
   (let [tokens (str/split ipv6-string #":")]
     (and (valid-tokens? tokens)
@@ -48,8 +44,7 @@
          (no-hanging-colon? ipv6-string))))
 
 (defn ipv6-form-2?
-  "Validate IPv6 accordring to https://tools.ietf.org/html/rfc4291#section-2.2
-  form 2."
+  "Validate IPv6 according to https://tools.ietf.org/html/rfc4291#section-2.2 form 2."
   [ipv6-string]
   (let [colon-colon-count (count (re-seq #"::" ipv6-string))
         tokens (filter #(not= "" %) (str/split ipv6-string #"[:]{1,2}"))]
@@ -59,8 +54,7 @@
              (no-hanging-colon? ipv6-string)))))
 
 (defn ipv6-form-3?
-  "Validate IPv6 accordring to https://tools.ietf.org/html/rfc4291#section-2.2
-  form 2."
+  "Validate IPv6 according to https://tools.ietf.org/html/rfc4291#section-2.2 form 2."
   [ipv6-string]
   (let [parts (re-find #"([a-zA-Z0-9:]+):(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})" ipv6-string)]
     (if (not-nil? parts)

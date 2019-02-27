@@ -28,10 +28,11 @@
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-opts)]
     (cond
       (:help options) {:exit-message (usage-msg summary) :ok? true}
-      errors          {:exit-message (error-msg errors)}
-      :else           {:options options :arguments arguments})))
+      errors {:exit-message (error-msg errors)}
+      :else {:options options :arguments arguments})))
 
 (defn exit
+  "Logs a message and performs a system exit"
   [status msg]
   (log/info msg)
   (System/exit status))

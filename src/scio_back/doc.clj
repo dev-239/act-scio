@@ -21,7 +21,6 @@
            (java.text SimpleDateFormat)
            (java.io ByteArrayOutputStream FileNotFoundException)))
 
-
 (defmacro with-timeout [millis name & body]
   `(let [future# (future ~@body)]
      (try
@@ -83,25 +82,14 @@
           geonames-cities (tag/locations cfg-cities nlp-locations)
           geonames-tags (tag/location-aliases cfg-cities nlp-locations)
           geonames-countries (tag/country-info cfg-countries nlp-locations)
-          geonames-cc-derived (tag/locations->country-codes cfg-cities
-                                                            geonames-cities)
-          geonames-countries-derived (tag/country-info cfg-countries
-                                                       geonames-cc-derived)
+          geonames-cc-derived (tag/locations->country-codes cfg-cities geonames-cities)
+          geonames-countries-derived (tag/country-info cfg-countries geonames-cc-derived)
           geonames-regions (tag/region-info cfg-regions nlp-locations :region)
           geonames-sub-regions (tag/region-info cfg-regions nlp-locations :sub-region)
-          geonames-countries-regions-derived (tag/country->region
-                                              cfg-regions
-                                              geonames-countries
-                                              :region)
-          geonames-countries-sub-regions-derived (tag/country->region cfg-regions
-                                                                      geonames-countries
-                                                                      :sub-region)
-          geonames-countries-derived-regions-derived (tag/country->region cfg-regions
-                                                                          geonames-countries-derived
-                                                                          :region)
-          geonames-countries-derived-sub-regions-derived (tag/country->region cfg-regions
-                                                                              geonames-countries-derived
-                                                                              :sub-region)
+          geonames-countries-regions-derived (tag/country->region cfg-regions geonames-countries :region)
+          geonames-countries-sub-regions-derived (tag/country->region cfg-regions geonames-countries :sub-region)
+          geonames-countries-derived-regions-derived (tag/country->region cfg-regions geonames-countries-derived :region)
+          geonames-countries-derived-sub-regions-derived (tag/country->region cfg-regions geonames-countries-derived :sub-region)
           tools (set (tag/tools cfg-tools content))]
       (-> doc
           (build-data-map file-name)
@@ -110,12 +98,8 @@
                  :hexdigest sha-256
                  :ssdeep (.HashString spamsum content)
                  :sectors (tag/find-sectors (:sectors cfg) content)
-                 :threat-actor {:names (tag/threat-actors
-                                        (get-in cfg [:threatactors :ta-config])
-                                        tag-list)
-                                :aliases (tag/threat-actor-aliases
-                                          (get-in cfg [:threatactors :ta-config])
-                                          tag-list)}
+                 :threat-actor {:names (tag/threat-actors (get-in cfg [:threatactors :ta-config]) tag-list)
+                                :aliases (tag/threat-actor-aliases (get-in cfg [:threatactors :ta-config]) tag-list)}
                  :geonames {:cities geonames-cities
                             :tags geonames-tags
                             :countries geonames-countries
@@ -123,12 +107,9 @@
                             :sub-regions geonames-sub-regions
                             :regions-derived geonames-countries-regions-derived
                             :sub-regions-derived geonames-countries-sub-regions-derived
-                            :countries-derived (difference geonames-countries-derived
-                                                           geonames-countries)
-                            :countries-derived-regions-derived (difference geonames-countries-derived-regions-derived
-                                                                               geonames-countries-regions-derived)
-                            :countries-derived-sub-regions-derived (difference geonames-countries-derived-sub-regions-derived
-                                                                           geonames-countries-sub-regions-derived)}
+                            :countries-derived (difference geonames-countries-derived geonames-countries)
+                            :countries-derived-regions-derived (difference geonames-countries-derived-regions-derived geonames-countries-regions-derived)
+                            :countries-derived-sub-regions-derived (difference geonames-countries-derived-sub-regions-derived geonames-countries-sub-regions-derived)}
                  :tools {:names (map :name tools)
                          :aliases (flatten (map :aliases tools))}})))
     (catch Exception e
