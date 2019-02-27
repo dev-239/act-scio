@@ -2,7 +2,6 @@
   (:require [clojure.test :refer :all]
             [scio-back.addressvalidator :refer :all]))
 
-
 (deftest test-ipv6
   (testing "Verify form 1"
     (is (= true (ipv6-form-1? "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789")))
@@ -30,8 +29,8 @@
     (is (= false (ipv6-form-3? "FF01::101")))
     (is (= false (ipv6-form-3? "::1")))
     (is (= false (ipv6-form-3? "::")))
-    (is (= false (ipv6-form-3? "ABCG:EF01:2345:6789:ABCD:EF01:2345:6789")))
-    )
+    (is (= false (ipv6-form-3? "ABCG:EF01:2345:6789:ABCD:EF01:2345:6789"))))
+
   (testing "Verify IPv6 form"
     (is (= false (ipv6-form? "d:")))
     (is (= false (ipv6-form? "ad:bd::f4:f3::f1")))

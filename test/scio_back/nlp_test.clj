@@ -7,7 +7,9 @@
 
 (deftest simple-test
   (testing "Extraction"
-    (let [res (raw-text->interpretation (read-config "etc/scio.ini") :en "Jon Jameson, a citizen of Norway, did find a Toyota Landcruiser besides the road at 4am this evening.")]
+    (let [res (raw-text->interpretation
+                (read-config "./etc/scio.ini")
+                :en "Jon Jameson, a citizen of Norway, did find a Toyota Landcruiser besides the road at 4am this evening.")]
       (is (contains? res :persons))
       (is (contains? res :organizations))
       (is (contains? res :times))
@@ -17,7 +19,6 @@
       (is (contains? res :moneys))
       (is (= "Norway" (first (:locations res))))
       (is (= "Jon Jameson" (first (:persons res)))))))
-
 
 (deftest drop-en-trailing-conjunction-test
   (testing "Dropping trailing conjunction"
@@ -29,14 +30,14 @@
                  ["the" "troll" "yet"]
                  ["the" "troll" "but"]
                  ["the" "troll"]]]
-          (doseq [t tests]
-            (is (= ["the" "troll"] (drop-en-trailing-conjunction t)))))))
+      (doseq [t tests]
+        (is (= ["the" "troll"] (drop-en-trailing-conjunction t)))))))
 
 (deftest drop-en-article-test
   (testing "Drop english article from element tokens"
     (let [tests [["the" "troll"]
                  ["a" "troll"]
-                 ["an" "troll"]]] ;; yes yes; I know.
+                 ["an" "troll"]]]
       (doseq [t tests]
         (is (= ["troll"] (drop-en-article t)))))))
 

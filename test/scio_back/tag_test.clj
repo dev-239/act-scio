@@ -22,7 +22,6 @@
         (is (= "Stealth Falcon" (:name alias)))
         (is (= "FruityArmor" ((set (:aliases alias)) "FruityArmor")))))))
 
-
 (deftest sector-stem-test
   (testing "sector stemming"
     (let [tests (zip ["the financial sector" "a banking organization"

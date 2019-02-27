@@ -29,10 +29,7 @@
     www.nytimes3xbfgragh.onion lorem ipsum
     fe80::ea39:35ff:fe12:2d71/64 lorem ipsum
     The mail address user@fastmail.fm is not real
-    www.mnemonic.no") 
-
-(def test-text-uppercase
-  (clojure.string/upper-case test-text-lowercase))
+    www.mnemonic.no")
 
 (deftest test-tld-list
   (let [tlds-all (tlds-from-files ["test/data/tld-list-1.txt" "test/data/tld-list-2.txt"])
@@ -42,7 +39,7 @@
       (is (= tlds-first ["com" "no"])))))
 
 (deftest test-scraper
-  (let [indicators (raw-text->indicators (read-config "etc/scio.ini") test-text-lowercase)]
+  (let [indicators (raw-text->indicators (read-config "./etc/scio.ini") test-text-lowercase)]
     (testing "scrape md5 lowercase"
       (is (= (:md5 indicators) '("be5ee729563fa379e71d82d61cc3fdcf"))))
 
