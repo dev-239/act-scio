@@ -1,5 +1,8 @@
 # scio-back
-
+### Issues
+* Some artifacts are not published by upstream so this project will not build or run
+  * en-ner-ta.bin (OpenNLP Threat Actor Model)
+  * en-ner-vulnerability.bin (OpenNLP Vulnerability Model)
 ### Configuration
 #### Document Handler
 There are multiple methods to ingest and handle new documents for processing.
@@ -52,7 +55,7 @@ Options:
 ### Bootstrap
 ```
 git clone https://github.com/mnemonic-no/act-scio.git
-cd scio
+cd act-scio
 cd etc
 ./download_data.sh
 ```
