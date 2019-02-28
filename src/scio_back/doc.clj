@@ -41,8 +41,7 @@
              now)))
 
 (defn build-data-map
-  "Extract specific fields from the document. If the document does not contain
-  a 'creation-date' field, the current time is used."
+  "Extract fields from the document. If the document does not contain a 'creation-date' field, current time is used."
   [doc file-name]
   (-> {}
       (into {:creation-date (first (get doc :creation-date [(iso-date-string)]))})
@@ -54,8 +53,8 @@
       (into {:author (first (get doc :author NA))})
       (into {:creator-tool (first (get doc :creator-tool NA))})))
 
-(defn analyse
-  "Analyse file and store result to elasticsearch"
+(defn analyze
+  "Analyze file"
   [file-name cfg sha-256]
   (log/info "Starting to analyze" sha-256)
   (try
@@ -118,21 +117,30 @@
 
 (defn start-document-worker
   "Start a new document worker, listening for jobs on a channel"
-  [job-channel cfg storage-cfg id timeout-ms storage-fn]
+  [job-channel cfg storage-fn storage-cfg id timeout-ms completed-dir error-dir]
   (thread
     (while true
       (let [{:keys [file-name sha-256 record]} (<!! job-channel)]
         (log/info "Worker" id "got job" sha-256)
-        (if-let [results (with-timeout timeout-ms sha-256 (analyse file-name cfg sha-256))]
-          (do
-            (storage-fn (merge results record) storage-cfg sha-256)
-            (log/info "Worker" id "finished job" sha-256))
-          (log/error "Worker" id "FAILED to complete job" sha-256))))))
+        (let [results (with-timeout timeout-ms sha-256 (analyze file-name cfg sha-256))
+              file (io/file file-name)]
+          (if (some? results)
+            (do
+              (storage-fn (merge results record) storage-cfg sha-256)
+              (io/copy file (io/file (str completed-dir "/" (.getName file))))
+              (io/delete-file file-name)
+              (log/info "Worker" id "finished job" sha-256))
+            (do
+              (io/copy file (io/file (str error-dir "/" (.getName file))))
+              (io/delete-file file-name)
+              (log/error "Worker" id "FAILED to complete job" sha-256))))))))
 
 (defn start-worker-pool
   "Spin up a pool of n workers listening to a jobs channel"
   [cfg num-workers]
-  (let [storage-location (get-in cfg [:general :storage-location])
+  (let [completed-dir (get-in cfg [:general :completed-dir])
+        error-dir (get-in cfg [:general :error-dir])
+        storage-location (get-in cfg [:general :storage-location])
         storage-fn (get storage/stores storage-location)
         storage-cfg (get cfg (keyword (str "storage-" storage-location)))]
     (if (and (some? storage-fn) (some? storage-cfg))
@@ -141,7 +149,7 @@
         (log/info "Starting a worker pool of" num-workers "workers")
         (doseq [id (range num-workers)]
           (log/info "Starting worker" id)
-          (start-document-worker job-channel cfg storage-cfg id timeout-ms storage-fn))
+          (start-document-worker job-channel cfg storage-fn storage-cfg id timeout-ms completed-dir error-dir))
         (log/info "Worker pool started")
         job-channel)
       (log/error "could not find storage location and or storage config:" storage-location))))
@@ -207,8 +215,8 @@
                 sha-256 (digest/sha-256 content)
                 output-name (str temp-dir "/" new-filename)]
             (store! content output-name)
-            (>!! job-channel (->JobMessage output-name sha-256 {:filename new-filename}))
-            (io/delete-file new-file))
+            (io/delete-file new-file)
+            (>!! job-channel (->JobMessage output-name sha-256 {:filename new-filename})))
 
           ; If no new file was found
           (do
