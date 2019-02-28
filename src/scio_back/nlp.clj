@@ -31,16 +31,16 @@
 (defnex "percentage")
 (defnex "location")
 (defnex "money")
-(defnex "vulnerability")
-(defnex "threatactor")
+;(defnex "vulnerability")
+;(defnex "threatactor")
 
 (defn raw-text->interpretation
   "parse a text-body, interpret and return hash-map"
   [cfg lang text-body]
   {:pre [(s/assert ::specs/supported-language lang)
          (s/assert ::specs/nlp-model-config (get cfg lang))
-         (s/assert string? text-body)]}
-   ;:post [(s/assert ::specs/nlp-interpretation %)]}
+         (s/assert string? text-body)]
+   :post [(s/assert ::specs/nlp-interpretation %)]}
   {:persons (extract-persons cfg lang text-body)
    :organizations (extract-organizations cfg lang text-body)
    :times (extract-times cfg lang text-body)
@@ -59,7 +59,7 @@
       elements)))
 
 (defn drop-en-trailing-conjunction
-  "remove the last form from the elemts if it is a coordinating conjunction"
+  "remove the last form from the elements if it is a coordinating conjunction"
   [elements]
   {:pre [(s/assert (s/coll-of string?) elements)]
    :post [(s/assert (s/coll-of string?) %)]}

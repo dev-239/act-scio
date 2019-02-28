@@ -51,3 +51,8 @@
     (let [text "A financial sector and a banking organization walked over a bridge. They said helo to the defence sector and tipped their hat to king kong. The malware research industries was not particularly talkative."
           sectors (find-sectors (:sectors (read-config "./etc/scio.ini")) text)]
       (is (= sectors #{"defence" "technology" "financial-services"})))))
+
+(deftest country-info-test
+  (testing "Check that we can filter out valid countries"
+    (let [country-cfg (get-in (read-config "./etc/scio.ini") [:geonames :country-info])]
+      (is (= (country-info country-cfg  #{"Norway" "Europe"}) #{"Norway"})))))
