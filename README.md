@@ -60,8 +60,7 @@ Options:
 ### Bootstrap
 ```
 git clone https://github.com/mnemonic-no/act-scio.git
-cd act-scio
-cd etc
+cd act-scio/scripts/data
 ./download_data.sh
 ```
 
