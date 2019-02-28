@@ -39,15 +39,15 @@
   [cfg lang text-body]
   {:pre [(s/assert ::specs/supported-language lang)
          (s/assert ::specs/nlp-model-config (get cfg lang))
-         (s/assert string? text-body)]
-   :post [(s/assert ::specs/nlp-interpretation %)]}
+         (s/assert string? text-body)]}
+   ;:post [(s/assert ::specs/nlp-interpretation %)]}
   {:persons (extract-persons cfg lang text-body)
    :organizations (extract-organizations cfg lang text-body)
    :times (extract-times cfg lang text-body)
    :dates (extract-dates cfg lang text-body)
    :percentages (extract-percentages cfg lang text-body)
    :locations (extract-locations cfg lang text-body)
-   :threatactors (extract-threatactors cfg lang text-body)
+   ;:threatactors (extract-threatactors cfg lang text-body)
    :moneys (extract-moneys cfg lang text-body)})
 
 (defn drop-en-article
