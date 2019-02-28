@@ -1,8 +1,13 @@
 # scio-back
 ### Issues
-* Some artifacts are not published by upstream so this project will not build or run
-  * en-ner-ta.bin (OpenNLP Threat Actor Model)
-  * en-ner-vulnerability.bin (OpenNLP Vulnerability Model)
+* Some artifacts are not published by upstream.
+  * NLP Models that cannot be found:
+    * en-ner-ta.bin (OpenNLP Threat Actor Model)
+    * en-ner-vulnerability.bin (OpenNLP Vulnerability Model)
+  * Artifacts that are provided but cannot be recreated or updated by users:
+    * tlds-alpha-by-domain.txt
+    * sectors.cfg
+    * tools.cfg
 ### Configuration
 #### Document Handler
 There are multiple methods to ingest and handle new documents for processing.

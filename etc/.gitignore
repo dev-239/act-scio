@@ -1,5 +1,6 @@
 backup/
 data/*.bin
+data/aliases.cfg
 data/cities1000.txt
 data/cities15000.txt
 data/countryInfo.txt
