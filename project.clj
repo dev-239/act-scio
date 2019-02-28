@@ -1,5 +1,5 @@
-(defproject scio-back "0.1.39-SNAPSHOT"
-  :description "Storing tweets and documents to Elasticsearch for indexing."
+(defproject scio-back "0.2.0-SNAPSHOT"
+  :description "Text and document analysis for Cyber IOC extraction with exchangeable ingest and storage."
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.apache.commons/commons-compress "1.13"] ;; "fix" for missing class in pantomime
                  [com.novemberain/pantomime "2.9.0"]
