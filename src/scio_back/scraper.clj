@@ -72,7 +72,7 @@
   "check if the string end in .[a-z]{2,} (two or more lowercase characters)"
   [tlds text]
   (let [found (map #(re-find (tld-pattern %) text) tlds)]
-    (some? (not (nil? found)))))
+    (some #(not (nil? %)) found)))
 
 (defn tlds-from-files
   "read list of tlds from configuration files. files should be a vector"
