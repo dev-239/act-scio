@@ -168,11 +168,11 @@
   "Handles an incoming message on a tube in beanstalk, stores the file content of
   the message to disk (as per .ini file config). Then sends file to analysis"
   [cfg job-channel]
-  (let [bs-cfg (get cfg :handler-beanstalk)
+  (let [temp-dir (:temp-dir cfg)
+        bs-cfg (get cfg :handler-beanstalk)
         host (:host bs-cfg)
         port (Integer/parseInt (:port bs-cfg))
-        queue (get bs-cfg :queue bs-cfg)
-        temp-dir (:temp-dir bs-cfg)]
+        queue (get bs-cfg :queue bs-cfg)]
     (while true
       (beanstalk/with-beanstalkd (beanstalk/beanstalkd-factory host port)
         (beanstalk/watch-tube queue)
@@ -186,9 +186,43 @@
             (>!! job-channel (->JobMessage output-name sha-256 record)))
           (beanstalk/delete job))))))
 
+(defn handle-from-filesystem
+  "Looks for new files in a folder on the file system, stores them to the scio temp dir. Then sends file to analysis."
+  [cfg job-channel]
+  (let [temp-dir (:temp-dir cfg)
+        fs-cfg (:handler-filesystem cfg)
+        in-dir (io/file (:input-directory fs-cfg))
+        wait-seconds (Integer/parseInt (:wait-seconds fs-cfg))]
+
+    ; Check if the provided input directory is a directory and that we can use it.
+    (if (and (.exists in-dir) (.isDirectory in-dir) (.canRead in-dir) (.canWrite in-dir))
+      (while true
+
+        ; Get a new file from the filesystem, if no files are found then we hold back and wait a bit.
+        (if-let [new-file (first (sort-by #(.lastModified %) (filter #(not (.isDirectory %)) (.listFiles in-dir))))]
+
+          ; Load the newly found file, persist it to the temp dir for scio, and submit it to the worker pool.
+          (let [new-filename (.getName new-file)
+                content (slurp-bytes new-file)
+                sha-256 (digest/sha-256 content)
+                output-name (str temp-dir "/" new-filename)]
+            (store! content output-name)
+            (>!! job-channel (->JobMessage output-name sha-256 {:filename new-filename}))
+            (io/delete-file new-file))
+
+          ; If no new file was found
+          (do
+            (log/info "found no new files in" (.getName in-dir) "waiting...")
+            (Thread/sleep (* wait-seconds 1000)))))
+
+      ; If the input dir does not exist or permissions are invalid.
+      (log/error "please verify that input directory for filesystem handler exists and you have valid permissions."))))
+
+
 (def handlers
   "Document handlers available for the user to run the system with"
-  {:beanstalk handle-from-beanstalk})
+  {:beanstalk handle-from-beanstalk
+   :filesystem handle-from-filesystem})
 
 (defn start-handler
   "Starts a worker pool, then starts the wanted document handler to ingest docs into the worker pool"
