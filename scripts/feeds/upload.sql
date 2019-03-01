@@ -1,4 +1,4 @@
-CREATE TABLE upload (
+CREATE TABLE IF NOT EXISTS upload (
 	 id integer PRIMARY KEY,
 	 filename text NOT NULL,
 	 sha256 text NOT NULL,

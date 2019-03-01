@@ -1,36 +1,49 @@
 #!/usr/bin/env bash
 
-BASE=/opt/scio_feeds
-SCIODIR=/opt/scio
+set -e
 
-mkdir $BASE/download 2> /dev/null
-mkdir $BASE/pdf 2> /dev/null
-mkdir $BASE/doc 2> /dev/null
-mkdir $BASE/xls 2> /dev/null
-mkdir $BASE/csv 2> /dev/null
-mkdir $BASE/xml 2> /dev/null
+BASE="./data"
+LOG_DIR="${BASE}/log"
+SCIO_DIR="../tools"
+DOWNLOAD_DIR="${BASE}/download"
+TYPES="pdf
+doc
+xls
+csv
+xml"
+UPLOAD_DB="${BASE}/upload.db"
+UPLOAD_SQL="upload.sql"
+SUBMIT_DB="${BASE}/submitcache.db"
+SUBMIT_SQL="submitcache.sql"
 
+function create_dir {
+    if [[ ! -d "$1" ]]; then
+        mkdir "$1"
+    fi
+}
 
-$BASE/feed_download.py \
---download_pdf --pdf_store $BASE/pdf \
---download_doc --doc_store $BASE/doc \
---download_xls --xls_store $BASE/xls \
---download_csv --csv_store $BASE/csv \
---download_xml --xml_store $BASE/xml \
---log $BASE/log/feed_download.log \
---output $BASE/download --meta $BASE/download \
---feeds $BASE/feeds.txt \
+create_dir ${BASE}
+create_dir ${LOG_DIR}
+create_dir ${DOWNLOAD_DIR}
+for TYPE in ${TYPES}; do create_dir ${BASE}/${TYPE}; done
+
+TYPE_ARGS=""
+for TYPE in ${TYPES}; do
+    ARGS+="--download_${TYPE} --${TYPE}_store ${BASE}/${TYPE} "
+done
+
+python3 feed_download.py ${TYPE_ARGS} \
+--log ${BASE}/log/feed_download.log \
+--output ${BASE}/download --meta ${BASE}/download \
+--feeds feeds.txt \
 --verbose
 
+sqlite3 ${UPLOAD_DB} < ${UPLOAD_SQL}
+python3 upload.py --log ${BASE}/log/upload.log --cache ${BASE}/upload.db --debug ${BASE}/download
 
-$BASE/upload.py \
---log $BASE/log/upload.log \
---cache $BASE/upload.db \
---debug $BASE/download
-
-
-for dir in pdf doc xls csv xml; do
-	for file_name in `$BASE/submitcache.py -c $BASE/submitcache.db -a $BASE/$dir` ; do
-		$SCIODIR/submit.py $file_name
+sqlite3 ${SUBMIT_DB} < ${SUBMIT_SQL}
+for TYPE in ${TYPES}; do
+	for FILENAME in `python3 submitcache.py -c ${SUBMIT_DB} -a ${BASE}/${TYPE}`; do
+		${SCIO_DIR}/submit.py ${FILENAME}
 	done
 done
