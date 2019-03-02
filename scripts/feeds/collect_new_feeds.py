@@ -24,12 +24,9 @@ The .meta files associated with the .html files from the feed download is
 kept to preserve information about source and original titles as well as 
 feed time and date stamps.
 
-This files builds a document understood by SCIOs 'doc' work queue.
-
 This utility is not meant to handle the files downloaded from links _in_ the
 feed as these document does not share any of the meta-data associated with 
-the feed entries. These files need to be handled separately (using SCIOs own
-submit utility.
+the feed entries.
 """
 
 import argparse
@@ -38,8 +35,6 @@ import json
 import logging
 import os
 import sqlite3
-
-import pystalkd.Beanstalkd
 import magic
 
 LOGGER = logging.getLogger('root')
@@ -49,19 +44,13 @@ def init():
     """initialize argument parser"""
 
     parser = argparse.ArgumentParser(description="Upload html to Scio")
-    parser.add_argument("-l", "--log", type=str,
-                        help="Which file to log to (default: stdout)")
-    parser.add_argument("-q", "--queue", type=str, default="doc",
-                        help="Which beanstalk queue to use (default: doc)")
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Log level INFO")
-    parser.add_argument("--debug", action="store_true",
-                        help="Log level DEBUG")
-    parser.add_argument("--cache", type=str, default="upload.sqlite",
-                        help=("Which database used for caching allready " +
-                              "uploaded files (default: upload.sqlite)"))
-    parser.add_argument("directories", metavar="DIR", type=str, nargs='+',
-                        help="Which directories to scan")
+    parser.add_argument("-l", "--log", type=str, help="Which file to log to (default: stdout)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Log level INFO")
+    parser.add_argument("-o", "--output", type=str, help="Where to save filenames (default: stdout)")
+    parser.add_argument("--debug", action="store_true", help="Log level DEBUG")
+    parser.add_argument("--cache", type=str, default="upload.sqlite", help=("Database used for caching already " +
+                                                                            "uploaded files (default: upload.sqlite)"))
+    parser.add_argument("directories", metavar="DIR", type=str, nargs='+', help="Which directories to scan")
 
     return parser.parse_args()
 
@@ -90,19 +79,15 @@ def metadata(file_pairs):
 
 
 def get_files(directories):
-    """In a directory, get a listing of all .html files, pair
-    them with the correct .meta file and build a list of
-    CandidateFile object containing the path to the .html content
-    file and the parsed meta data"""
+    """In a directory, get a listing of all .html files, pair them with the correct .meta file and build a list of
+    CandidateFile object containing the path to the .html content file and the parsed meta data"""
 
     def rewrite_meta(file_path):
-        """take a path with a .html extension and replace the
-        extension with .meta"""
+        """take a path with a .html extension and replace the extension with .meta"""
 
         return file_path[:-4] + "meta"
 
     LOGGER.debug("Scanning %s", directories)
-
     res = []
 
     for directory in directories:
@@ -118,46 +103,10 @@ def get_files(directories):
     return res
 
 
-def main(args):
-    """entry point"""
-
-    submit_cache = Cache(args.cache)
-
-    candidates = get_files(args.directories)
-
-    LOGGER.info("Found %d files", len(candidates))
-
-    bs_conn = pystalkd.Beanstalkd.Connection()
-    bs_conn.use(args.queue)
-
-    for candidate in candidates:
-
-        partial_feed = candidate.metadata.get("partial_feed", False)
-        if partial_feed:
-            LOGGER.info("Partial feed: %s", candidate.filename) # NOQA
-            hexdigest = hashlib.sha256(candidate.metadata["link"].encode("utf-8")).hexdigest()
-            LOGGER.info("Partial feed: %s", hexdigest) # NOQA
-        else:
-            hexdigest = candidate.sha256()
-
-        if not submit_cache.uploaded(hexdigest):
-            LOGGER.debug("submit %s", candidate.filename)
-            submit_cache.insert(candidate.filename, hexdigest,
-                                candidate.metadata.get("creation-date", "NA"))
-            my_metadata = candidate.metadata
-            my_metadata['filename'] = candidate.filename
-            if candidate.uploadable():
-                bs_conn.put(json.dumps(my_metadata))
-            else:
-                LOGGER.info("Not uploading %s (wrong mimetype)", candidate.filename) # NOQA
-
-
 class CandidateFile(object):
-    """CandidateFile holds the metadata related to an .html file
-    describing when the feed was published etc. """
+    """CandidateFile holds the metadata related to an .html file describing when the feed was published etc. """
 
     def __init__(self, filename, my_metadata):
-
         LOGGER.debug("Creating CandidateFile %s", filename)
 
         self.filename = os.path.abspath(filename)
@@ -169,19 +118,17 @@ class CandidateFile(object):
     def uploadable(self):
         """Check that the file content is part of a list of valid mime-types"""
 
-        # Some file endings we need to upload no matter what (typicaly files
-        # that is text type files.
+        # Some file endings we need to upload no matter what (typically files that is text type files.
         uploadable_file_endings = [".xml", ".csv", ".html"]
         for file_ending in uploadable_file_endings:
             if file_ending in self.filename:
                 return True
 
-        # if not, we assume .docx and .pdf with friends actually has a mime
-        # type starting in with application.
+        # if not, we assume .docx and .pdf with friends actually has a mime-type starting in with application.
         return self.mime.from_file(self.filename).startswith("application")
 
     def sha256(self):
-        """Compute the sha256 if it not allready computed, return the value"""
+        """Compute the sha256 if it not already computed, return the value"""
 
         if not self._sha256:  # compute sha256 only when needed and only once.
             LOGGER.debug("Computing SHA256 of %s", self.filename)
@@ -195,18 +142,16 @@ class CandidateFile(object):
 class Cache(object):
     """Cache handles the caching database logic"""
 
-    def __init__(self, filename="upload.sqlite"):
+    def __init__(self, filename):
         """Initiate database, creating connection to file"""
 
         LOGGER.info("Connecting to %s", filename)
         self.conn = sqlite3.connect(filename)
 
     def uploaded(self, sha256):
-        """Check if a particular digest is allready uploaded. Returns
-        True/False"""
+        """Check if a particular digest is already uploaded. Returns True/False"""
 
-        sql = "SELECT * FROM upload WHERE sha256 = ?"
-
+        sql = "SELECT * FROM feeds WHERE sha256 = ?"
         cur = self.conn.execute(sql, (sha256,))
 
         if cur.fetchall():
@@ -219,53 +164,82 @@ class Cache(object):
     def insert(self, filename, sha256, description=""):
         """insert a new file in the metadata cache"""
 
-        sql = "INSERT INTO upload(filename, sha256, description) VALUES(?,?,?)"
-        LOGGER.debug("Inserting %s, %s, %s into database",
-                     filename, sha256, description)
+        sql = "INSERT INTO feeds(filename, sha256, description) VALUES(?,?,?)"
+        LOGGER.debug("Inserting %s, %s, %s into database", filename, sha256, description)
         self.conn.execute(sql, (filename, sha256, description))
         self.conn.commit()
 
     def info(self, sha256):
-        """Get stored info about a digest. Returns a list of Dictionaries"""
+        """Get stored info about a digest. Returns a list of dictionaries"""
 
-        sql = "SELECT filename, sha256, description FROM upload WHERE sha256 = ?" # NOQA
-
+        sql = "SELECT filename, sha256, description FROM feeds WHERE sha256 = ?"
         cur = self.conn.execute(sql, (sha256,))
 
         results = cur.fetchall()
-        LOGGER.debug("Found %d resultsults for %s", len(results), sha256)
+        LOGGER.debug("Found %d results for %s", len(results), sha256)
 
         result_dictionaries = []
 
         for result in results:
-            key_value_pairs = list(zip(["filename", "sha256", "description"],
-                                   result))
+            key_value_pairs = list(zip(["filename", "sha256", "description"], result))
             result_dictionaries.append(dict(key_value_pairs))
 
         return result_dictionaries
 
 
-if __name__ == "__main__":
-    ARGS = init()
-    FORMAT = '%(asctime)-15s [%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s' # NOQA
+def main(args):
+    """entry point"""
 
-    LOGCFG = {
-        "format": FORMAT,
+    submit_cache = Cache(args.cache)
+    candidates = get_files(args.directories)
+    LOGGER.info("Found %d files", len(candidates))
+
+    for candidate in candidates:
+        partial_feed = candidate.metadata.get("partial_feed", False)
+        if partial_feed:
+            LOGGER.info("Partial feed: %s", candidate.filename)
+            hexdigest = hashlib.sha256(candidate.metadata["link"].encode("utf-8")).hexdigest()
+            LOGGER.info("Partial feed: %s", hexdigest)
+        else:
+            hexdigest = candidate.sha256()
+
+        if not submit_cache.uploaded(hexdigest):
+            LOGGER.debug("submit %s", candidate.filename)
+            submit_cache.insert(candidate.filename, hexdigest, candidate.metadata.get("creation-date", "NA"))
+            my_metadata = candidate.metadata
+            my_metadata['filename'] = candidate.filename
+            str_metadata = json.dumps(my_metadata)
+
+            if candidate.uploadable():
+                if not args.output:
+                    print(str_metadata)
+                else:
+                    with open(args.output, 'a') as fp:
+                        fp.write('{}\n'.format(str_metadata))
+            else:
+                LOGGER.info("Not uploading %s (wrong mime-type)", candidate.filename)
+
+
+if __name__ == "__main__":
+    args = init()
+    logger_format = '%(asctime)-15s [%(filename)s:%(lineno)4s - %(funcName)20s()] %(message)s'
+    logger_config = {
+        "format": logger_format,
         "level": logging.WARN,
     }
 
-    if ARGS.verbose:
-        LOGCFG['level'] = logging.INFO
+    if args.verbose:
+        logger_config['level'] = logging.INFO
 
-    if ARGS.debug:
-        LOGCFG['level'] = logging.DEBUG
+    if args.debug:
+        logger_config['level'] = logging.DEBUG
 
-    if ARGS.log:
-        LOGCFG['filename'] = ARGS.log
+    if args.log:
+        logger_config['filename'] = args.log
 
-    logging.basicConfig(**LOGCFG)
+    logging.basicConfig(**logger_config)
 
     try:
-        main(ARGS)
+        main(args)
     except IOError as err:
         LOGGER.error(err)
