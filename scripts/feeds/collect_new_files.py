@@ -26,6 +26,7 @@ import argparse
 import hashlib
 import os
 import sys
+import shutil
 import sqlite3
 import magic
 
@@ -81,11 +82,7 @@ def check_directories(args, cache, directories):
                 continue
 
             if not cache.contains(sha256):
-                if not args.output:
-                    print(file_name)
-                else:
-                    with open(args.output, 'a') as fp:
-                        fp.write('{}\n'.format(file_name))
+                yield file_name
 
                 if args.add:
                     cache.append(sha256)
@@ -122,7 +119,22 @@ def main(args):
     """Main program body"""
 
     cache = Cache(args.cache)
-    check_directories(args, cache, args.directories)
+    generator = check_directories(args, cache, args.directories)
+
+    if args.output:
+        dirname = os.path.dirname(args.output)
+        basename = os.path.basename(args.output)
+        tmp_basename = '.{}'.format(basename)
+        tmp_file = os.path.join(dirname, tmp_basename)
+
+        with open(tmp_file, 'a') as fp:
+            for filename in generator:
+                fp.write('{}\n'.format(filename))
+
+        shutil.move(tmp_file, args.output)
+    else:
+        for filename in generator:
+            print(filename)
 
 
 if __name__ == '__main__':

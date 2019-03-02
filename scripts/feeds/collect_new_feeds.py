@@ -33,9 +33,10 @@ import argparse
 import hashlib
 import json
 import logging
-import os
-import sqlite3
 import magic
+import os
+import shutil
+import sqlite3
 
 LOGGER = logging.getLogger('root')
 
@@ -187,8 +188,8 @@ class Cache(object):
         return result_dictionaries
 
 
-def main(args):
-    """entry point"""
+def generate_results(args):
+    """collect new feeds that have not been processed before"""
 
     submit_cache = Cache(args.cache)
     candidates = get_files(args.directories)
@@ -211,13 +212,28 @@ def main(args):
             str_metadata = json.dumps(my_metadata)
 
             if candidate.uploadable():
-                if not args.output:
-                    print(str_metadata)
-                else:
-                    with open(args.output, 'a') as fp:
-                        fp.write('{}\n'.format(str_metadata))
+                yield str_metadata
             else:
                 LOGGER.info("Not uploading %s (wrong mime-type)", candidate.filename)
+
+
+def main(args):
+    """entry point"""
+
+    if args.output:
+        dirname = os.path.dirname(args.output)
+        basename = os.path.basename(args.output)
+        tmp_basename = '.{}'.format(basename)
+        tmp_file = os.path.join(dirname, tmp_basename)
+
+        with open(tmp_file, 'a') as fp:
+            for meta_data in generate_results(args):
+                fp.write('{}\n'.format(json.dumps(meta_data)))
+
+        shutil.move(tmp_file, args.output)
+    else:
+        for meta_data in generate_results(args):
+            print(meta_data)
 
 
 if __name__ == "__main__":
