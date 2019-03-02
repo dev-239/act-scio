@@ -20,25 +20,24 @@ Download feeds from the feeds.txt file, store feed content in .html and feed
 metadata in .meta files. Also attempts to download links to certain document
 types"""
 
+from bs4 import BeautifulSoup
 from datetime import datetime
 
 import argparse
 import concurrent.futures
+import feedparser
 import html
+import justext
 import json
 import logging
 import os.path
+import requests
 import shutil
 import sys
 import time
 import urllib.parse
 import urllib.request
 import urllib3
-
-import justext
-import requests
-import feedparser
-from bs4 import BeautifulSoup
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -64,7 +63,9 @@ def init():
     parser.add_argument("--debug", action="store_true", help="Log level DEBUG")
     parser.add_argument("--output", type=str, default="./download/", help="Storage .html files (default: ./download/)")
     parser.add_argument("--meta", type=str, default="./download/", help="Storage metadata files (default: ./download/)")
-    parser.add_argument("--feeds", default="./feeds.txt", type=str, help="feed urls (default: ./feeds.txt)")
+    parser.add_argument("--feeds", type=str, help="file with feed urls")
+    parser.add_argument("--feed", type=str, help="single feed url to download")
+    parser.add_argument("--feed_type", type=str, help="type of the single feed to download")
     parser.add_argument("--ignore_files", type=str, help="files to ignore (one filename per line)")
 
     return parser.parse_args()
@@ -344,7 +345,7 @@ def parse_feed_file(filename):
     full_feeds = []
     partial_feeds = []
 
-    for line_number, feed_line in enumerate(open(filename)):
+    for line_number, feed_line in enumerate(open(filename, 'r')):
         if len(feed_line) < 2:
             sys.stderr.write("line {0} to short".format(line_number+1))
         elif feed_line[:2] == "f ":
@@ -380,10 +381,27 @@ def download_feed_list(args, feed_list, handler_fn):
 def main(args):
     """Main program loop. Entry point."""
 
-    full_feeds, partial_feeds = parse_feed_file(args.feeds)
+    # If the user has provided both a feeds list and a single feed through cli args
+    if args.feeds and args.feed:
+        raise Exception("both a feeds file a feed URL was provided")
 
-    download_feed_list(args, full_feeds, handle_full_feed)
-    download_feed_list(args, partial_feeds, handle_partial_feed)
+    # If the user hasn't provided either a feeds file or a feed URL.
+    if not (args.feeds or args.feed):
+        raise Exception("you must provide either a feeds file or a feed url")
+
+    if args.feeds:
+        full_feeds, partial_feeds = parse_feed_file(args.feeds)
+        download_feed_list(args, full_feeds, handle_full_feed)
+        download_feed_list(args, partial_feeds, handle_partial_feed)
+
+    if args.feed:
+        feed_type = args.feed_type.lower()
+        if feed_type in ["partial", "p"]:
+            download_feed_list(args, [args.feed], handle_partial_feed)
+        elif feed_type in ["full", "f"]:
+            download_feed_list(args, [args.feed], handle_full_feed)
+        else:
+            raise Exception("valid feed types are: p, f, partial, or full")
 
 
 if __name__ == "__main__":
@@ -408,4 +426,4 @@ if __name__ == "__main__":
         main(args)
     except IOError as err:
         LOGGER.error(str(err))
-        raise err
+        sys.exit(1)
